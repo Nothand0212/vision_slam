@@ -13,7 +13,7 @@ int main( int argc, char **argv )
   int     frame_count = 0;
   while ( true )
   {
-    camera.getStereoFrame( frame_left, frame_right );
+    camera.getStereoFrameUndistorted( frame_left, frame_right );
     cv::imshow( "frame_left", frame_left );
     cv::imshow( "frame_right", frame_right );
 

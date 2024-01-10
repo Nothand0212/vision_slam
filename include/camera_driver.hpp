@@ -23,6 +23,7 @@ public:
   void close();
   void getFrame( cv::Mat& frame );
   void getStereoFrame( cv::Mat& frame_left, cv::Mat& frame_right );
+  void getStereoFrameUndistorted( cv::Mat& frame_left, cv::Mat& frame_right );
 
 private:
   int device;
@@ -36,9 +37,6 @@ private:
   cv::Mat camera_matrix_right;
 
   cv::VideoCapture cap;
-  cv::Mat          frame;
-  cv::Mat          frame_left;
-  cv::Mat          frame_right;
 };
 
 CameraDriver::CameraDriver()
@@ -51,6 +49,10 @@ CameraDriver::CameraDriver()
 
 CameraDriver::~CameraDriver()
 {
+  if ( this->cap.isOpened() )
+  {
+    this->close();
+  }
 }
 
 void CameraDriver::loadConfig( const std::string& config_file_path )
@@ -126,18 +128,19 @@ void CameraDriver::loadConfig( const std::string& config_file_path )
 void CameraDriver::initialize()
 {
   this->cap.open( this->device );
-  this->cap.set( cv::CAP_PROP_FPS, this->frame_rate );
-  this->cap.set( cv::CAP_PROP_FRAME_WIDTH, this->width * 2 );
-  this->cap.set( cv::CAP_PROP_FRAME_HEIGHT, this->height );
-
-  this->cap.set( cv::CAP_PROP_BUFFERSIZE, 1 );
-  this->cap.set( cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc( 'M', 'J', 'P', 'G' ) );
 
   if ( !this->cap.isOpened() )
   {
     std::cout << "Error opening video stream or file" << std::endl;
     exit( -1 );
   }
+
+  this->cap.set( cv::CAP_PROP_FPS, this->frame_rate );
+  this->cap.set( cv::CAP_PROP_FRAME_WIDTH, this->width * 2 );
+  this->cap.set( cv::CAP_PROP_FRAME_HEIGHT, this->height );
+
+  this->cap.set( cv::CAP_PROP_BUFFERSIZE, 1 );
+  this->cap.set( cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc( 'M', 'J', 'P', 'G' ) );
 }
 
 void CameraDriver::open( const int& device )
@@ -154,23 +157,23 @@ void CameraDriver::getFrame( cv::Mat& frame )
   this->cap >> frame;
 }
 
-void CameraDriver::getStereoFrame( cv::Mat& frame_left, cv::Mat& frame_right )
+void CameraDriver::getStereoFrameUndistorted( cv::Mat& frame_left, cv::Mat& frame_right )
 {
-  this->cap >> this->frame;
+  cv::Mat temp_frame_left, temp_frame_right;
 
-  this->frame_left  = this->frame( cv::Rect( 0, 0, 1280, 720 ) );
-  this->frame_right = this->frame( cv::Rect( 1280, 0, 1280, 720 ) );
+  this->getStereoFrame( temp_frame_left, temp_frame_right );
 
-  cv::undistort( this->frame_left, frame_left, this->camera_matrix_left, this->distortion_coefficients_left );
-  cv::undistort( this->frame_right, frame_right, this->camera_matrix_right, this->distortion_coefficients_right );
+  cv::undistort( temp_frame_left, frame_left, this->camera_matrix_left, this->distortion_coefficients_left );
+  cv::undistort( temp_frame_right, frame_right, this->camera_matrix_right, this->distortion_coefficients_right );
 }
 
-// void CameraDriver::getStereoFrame( cv::Mat& frame_left, cv::Mat& frame_right )
-// {
-//   this->cap >> this->frame;
+void CameraDriver::getStereoFrame( cv::Mat& frame_left, cv::Mat& frame_right )
+{
+  cv::Mat frame;
+  this->cap >> frame;
 
-//   frame_left  = this->frame( cv::Rect( 0, 0, 1280, 720 ) );
-//   frame_right = this->frame( cv::Rect( 1280, 0, 1280, 720 ) );
-// }
+  frame_left  = frame( cv::Rect( 0, 0, this->width, this->height ) );
+  frame_right = frame( cv::Rect( this->width, 0, this->width, this->height ) );
+}
 
 }  // namespace vision
